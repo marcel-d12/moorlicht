@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moorlicht – Zuschauer</title>
+<style>
+  :root {
+    --bg: #0e1217; --panel: #151b23; --panel2: #1b232e; --line: #283241;
+    --text: #dde5ee; --muted: #8492a6; --accent: #e9b44c;
+    --dorf: #5aa9e6; --moor: #e5565b; --whisper: #b79bd6; --st: #d9a441;
+    --yes: #5fbf77; --no: #d0616a;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    display: grid; grid-template-rows: auto 1fr auto; overflow: hidden;
+  }
+  button, select, input { font: inherit; color: inherit; }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    padding: 10px 18px; background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .04em; font-weight: 650; }
+  header h1 span { color: var(--accent); }
+  .field { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  select, .btn {
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 7px;
+    padding: 5px 9px; cursor: pointer;
+  }
+  select:hover, .btn:hover { border-color: #3b4a5f; }
+  .btn.on { border-color: var(--accent); color: var(--accent); }
+  label.check { display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text); font-size: 13px; }
+  #stats { margin-left: auto; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: right; }
+  main { display: grid; grid-template-columns: 400px 1fr; min-height: 0; }
+  aside {
+    background: var(--panel); border-right: 1px solid var(--line);
+    overflow-y: auto; padding: 14px 14px 30px;
+  }
+  #phase { text-align: center; font-size: 17px; font-weight: 650; margin: 2px 0 2px; }
+  #subphase { text-align: center; color: var(--muted); font-size: 13px; min-height: 20px; }
+  #circle { position: relative; width: 370px; height: 370px; margin: 6px auto 4px; }
+  #circle svg { position: absolute; inset: 0; pointer-events: none; }
+  .seat {
+    position: absolute; width: 96px; margin-left: -48px; margin-top: -40px; text-align: center;
+    transition: opacity .25s;
+  }
+  .seat .token {
+    width: 46px; height: 46px; border-radius: 50%; margin: 0 auto; position: relative;
+    display: grid; place-items: center; font-weight: 700; font-size: 18px; color: #10141a;
+    border: 3px solid transparent; box-shadow: 0 0 0 2px #0e1217;
+  }
+  .seat.dorf .token { border-color: var(--dorf); }
+  .seat.moor .token { border-color: var(--moor); }
+  .seat.dead .token { filter: grayscale(.85) brightness(.55); }
+  .seat.dead .nm { text-decoration: line-through; color: var(--muted); }
+  .seat.speaking .token { box-shadow: 0 0 0 2px #0e1217, 0 0 0 5px var(--accent), 0 0 18px 4px rgba(233,180,76,.55); }
+  .seat.nominee .token { box-shadow: 0 0 0 2px #0e1217, 0 0 0 5px var(--moor); }
+  .seat.focus .nm { color: var(--accent); }
+  .seat .nm { font-size: 13px; font-weight: 600; margin-top: 3px; line-height: 1.2; }
+  .seat .rl { font-size: 11.5px; color: var(--muted); line-height: 1.2; }
+  .seat.moor .rl { color: #f08a8e; } .seat.dorf .rl { color: #8fc4ee; }
+  .seat .badges { position: absolute; top: -9px; right: -14px; font-size: 14px; white-space: nowrap; }
+  .seat .mark { position: absolute; top: -9px; left: -12px; font-size: 14px; }
+  .seat .votemark {
+    position: absolute; bottom: -6px; right: -10px; width: 20px; height: 20px; border-radius: 50%;
+    font-size: 12px; display: grid; place-items: center; color: #0e1217; font-weight: 800;
+  }
+  .votemark.yes { background: var(--yes); } .votemark.no { background: var(--no); }
+  .legend { color: var(--muted); font-size: 12px; text-align: center; margin: 2px 0 12px; line-height: 1.7; }
+  details { border-top: 1px solid var(--line); padding: 8px 2px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 13.5px; color: var(--text); }
+  .role-group { margin: 8px 0 4px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .07em; }
+  .role-item { font-size: 12.5px; margin: 4px 0; color: #b9c4d2; }
+  .role-item b { color: var(--text); }
+  .role-item.inplay b { color: var(--accent); }
+  .role-item .who { color: var(--accent); font-weight: 600; }
+  #timeline { overflow-y: auto; padding: 4px 26px 60px; }
+  .section { max-width: 900px; margin: 0 auto; padding: 4px 0 10px; }
+  .divider {
+    position: sticky; top: 0; z-index: 2; margin: 14px -8px 10px; padding: 7px 14px; border-radius: 9px;
+    font-weight: 700; letter-spacing: .05em; font-size: 15px; border: 1px solid var(--line);
+  }
+  .divider.night { background: #171d3a; color: #b9c3ff; }
+  .divider.day { background: #3a3018; color: #ffd98a; }
+  .divider.setup, .divider.end { background: var(--panel2); }
+  .ev { margin: 7px 0; }
+  .sub { color: var(--muted); font-size: 13px; margin: 16px 0 6px; font-weight: 600; letter-spacing: .03em; }
+  .line { font-size: 13.5px; color: #c3cedb; padding: 3px 10px; border-left: 3px solid var(--line); }
+  .line.private { border-left-color: #56657a; background: rgba(120,140,170,.06); border-radius: 0 6px 6px 0; }
+  .line.st { border-left-color: var(--st); color: #e6c98c; background: rgba(217,164,65,.07); border-radius: 0 6px 6px 0; }
+  .line.tech { border-left-color: #333d4b; color: #6f7c8f; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .line.warn { border-left-color: var(--moor); color: #f0a3a6; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 13px; }
+  .card.death { border-color: #7a2f33; background: #24161a; font-weight: 600; }
+  .card.nom { border-color: #7b6431; background: #221d12; }
+  .card.result { background: var(--panel2); }
+  .bubble { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+    color: #10141a; font-weight: 700; font-size: 14px; margin-top: 2px;
+  }
+  .bubble .body { background: var(--panel); border: 1px solid var(--line); border-radius: 4px 12px 12px 12px; padding: 7px 12px 8px; }
+  .bubble.whisper .body { background: #1d1a29; border-color: #3a3152; }
+  .bubble.thought .body { background: transparent; border-style: dashed; color: #9fabbb; font-style: italic; }
+  .bubble.thought .avatar { opacity: .55; width: 24px; height: 24px; font-size: 11px; margin-left: 8px; }
+  .who { font-size: 12.5px; font-weight: 650; }
+  .tag { font-weight: 500; color: var(--muted); margin-left: 6px; font-size: .92em; }
+  .tag.moor { color: #f08a8e; } .tag.dorf { color: #8fc4ee; }
+  .who .ctx { font-weight: 500; color: var(--muted); margin-left: 6px; }
+  .bubble.whisper .who .ctx { color: var(--whisper); }
+  .txt { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .n { font-weight: 650; }
+  .vote { display: flex; gap: 8px; align-items: baseline; padding: 2px 10px 2px 44px; font-size: 13.5px; }
+  .pill { display: inline-block; border-radius: 20px; padding: 0 9px; font-size: 12px; font-weight: 700; color: #0e1217; }
+  .pill.yes { background: var(--yes); } .pill.no { background: var(--no); }
+  .vote .c { color: #aeb9c7; }
+  .tally { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+  .chip { border-radius: 6px; padding: 1px 8px; font-size: 12.5px; border: 1px solid var(--line); }
+  .chip.yes { border-color: var(--yes); color: #9be0ae; } .chip.no { color: var(--muted); }
+  .banner {
+    border: 1px solid var(--accent); border-radius: 12px; padding: 16px 18px; margin-top: 18px;
+    background: linear-gradient(180deg, #2a2413, #1a1710);
+  }
+  .banner h2 { margin: 0 0 4px; font-size: 20px; }
+  .banner.dorf { border-color: var(--dorf); background: linear-gradient(180deg, #13243a, #101822); }
+  .banner.moor { border-color: var(--moor); background: linear-gradient(180deg, #3a1518, #1e1012); }
+  table.reveal { border-collapse: collapse; margin-top: 10px; font-size: 13.5px; width: 100%; }
+  table.reveal td { padding: 3px 10px 3px 0; border-top: 1px solid rgba(255,255,255,.07); }
+  .waiting { color: var(--accent); font-size: 13.5px; padding: 12px 10px; }
+  .waiting::after { content: "…"; animation: dots 1.2s steps(4, end) infinite; display: inline-block; width: 1.2em; text-align: left; overflow: hidden; vertical-align: bottom; }
+  @keyframes dots { from { width: 0; } to { width: 1.2em; } }
+  footer {
+    display: flex; align-items: center; gap: 10px; padding: 8px 18px;
+    background: var(--panel); border-top: 1px solid var(--line);
+  }
+  footer input[type=range] { flex: 1; accent-color: var(--accent); }
+  #pos { color: var(--muted); font-size: 12.5px; min-width: 96px; text-align: right; font-variant-numeric: tabular-nums; }
+  #empty { max-width: 640px; margin: 80px auto; text-align: center; color: var(--muted); }
+  #empty code { background: var(--panel2); padding: 2px 7px; border-radius: 5px; color: var(--text); }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } aside { max-height: 46vh; border-right: 0; border-bottom: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Moor<span>licht</span></h1>
+  <div class="field">Partie <select id="game"></select></div>
+  <div class="field">Perspektive <select id="perspective"></select></div>
+  <label class="check" title="Private Merknotizen der Agenten zu jeder Entscheidung"><input type="checkbox" id="thoughts" checked> Notizen</label>
+  <label class="check"><input type="checkbox" id="tech"> Technik</label>
+  <label class="field" id="filebox" hidden>Protokoll öffnen <input type="file" id="file" accept=".jsonl,.json,.txt"></label>
+  <div id="stats"></div>
+</header>
+<main>
+  <aside>
+    <div id="phase">–</div>
+    <div id="subphase"></div>
+    <div id="circle"></div>
+    <div class="legend" id="legend"></div>
+    <details id="rolesbox"><summary>Rollenliste</summary><div id="roles"></div></details>
+    <details><summary>Bedienung</summary>
+      <div class="role-item">← / → ein Ereignis zurück oder vor · Leertaste: abspielen/anhalten · Ende: zum aktuellen Stand (Live).</div>
+      <div class="role-item">Perspektive „Erzähler“ zeigt alles, „Öffentlich“ nur, was der ganze Tisch sieht, und ein Spielername genau das, was dieser Spieler weiß.</div>
+    </details>
+  </aside>
+  <div id="timeline"><div id="empty">Lade …</div></div>
+</main>
+<footer>
+  <button class="btn" id="first" title="Zum Anfang">⏮</button>
+  <button class="btn" id="prev" title="Zurück (←)">◀</button>
+  <button class="btn" id="play" title="Abspielen (Leertaste)">▶ Abspielen</button>
+  <button class="btn" id="next" title="Vor (→)">▶</button>
+  <button class="btn on" id="live" title="Zum aktuellen Stand (Ende)">● Live</button>
+  <select id="speed" title="Tempo">
+    <option value="0.5">0,5×</option><option value="1" selected>1×</option>
+    <option value="2">2×</option><option value="4">4×</option>
+  </select>
+  <input type="range" id="slider" min="0" max="0" value="0">
+  <div id="pos"></div>
+</footer>
+
+<script>
+"use strict";
+const COLORS = ["#e8747c", "#eaa255", "#d9cb5a", "#86c96f", "#52c7b3", "#5badec", "#a391f2", "#db85d3", "#b7bfcb"];
+const KIND = { night: "Nacht", whisper_choice: "Flüsterwahl", whisper_reply: "Flüstern", speech: "Wortmeldung",
+               defense: "Verteidigung", nominate: "Nominierung", vote: "Abstimmung", shot: "Jäger", storyteller: "Erzähler" };
+const HIDDEN = new Set(["wait", "grimoire", "meta"]);
+const TECH = new Set(["usage", "fallback"]);
+
+const S = {
+  events: [], names: [], script: [], game: null, perspective: "st",
+  showThoughts: true, showTech: false, cursor: -1, live: true, playing: false, speed: 1,
+  ended: false, timer: null, pollTimer: null, renderKey: "", renderedUpto: -1, section: null, meta: null,
+};
+const $ = (id) => document.getElementById(id);
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k === "style") el.style.cssText = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat(3)) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+const joinNames = (list) => list.length === 0 ? "niemand" : list.length === 1 ? list[0]
+  : list.slice(0, -1).join(", ") + " und " + list[list.length - 1];
+const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + " Mio." : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(n);
+
+// ------------------------------------------------------------ Sichtbarkeit
+function canSee(e) {
+  if (S.perspective === "st") return true;
+  if (e.vis === "public") return true;
+  if (S.perspective === "public") return false;
+  return Array.isArray(e.vis) && e.vis.includes(S.perspective);
+}
+function isShown(e) {
+  if (HIDDEN.has(e.type)) return false;
+  if (TECH.has(e.type)) return S.showTech && S.perspective === "st";
+  if ((e.type === "note" || e.type === "thought") && !S.showThoughts) return false;
+  return canSee(e);
+}
+function shownIndices() {
+  const out = [];
+  for (const e of S.events) if (isShown(e)) out.push(e.i);
+  return out;
+}
+
+// ------------------------------------------------------------ Zustand am Cursor
+function foldState(cursor) {
+  const st = { phase: null, round: 0, dead: {}, ghostUsed: {}, roles: {}, grim: null, pairs: [],
+               nomination: null, block: null, blockVotes: 0, threshold: null, ended: null, bluffs: null,
+               calls: 0, cost: 0, tin: 0, tout: 0, speaker: null, target: null, label: "" };
+  for (const e of S.events) {
+    if (e.i > cursor) break;
+    const d = e.data;
+    if (e.type === "usage") {
+      st.calls++; st.cost += d.cost_usd || 0;
+      st.tin += (d.input_tokens || 0) + (d.cache_read_tokens || 0) + (d.cache_write_tokens || 0);
+      st.tout += d.output_tokens || 0;
+      continue;
+    }
+    if (!canSee(e)) continue;
+    switch (e.type) {
+      case "phase":
+        st.phase = d.kind; st.round = d.n; st.pairs = []; st.nomination = null; st.label = "";
+        if (d.kind === "day") { st.block = null; st.blockVotes = 0; st.threshold = null; }
+        break;
+      case "role": st.roles[d.seat] = d.role; break;
+      case "evil_info":
+        for (const m of d.members) if (!st.roles[m.seat]) st.roles[m.seat] = { name: m.role, typ: m.typ, team: "Moor" };
+        st.bluffs = d.bluffs; break;
+      case "grimoire":
+        st.grim = d; st.bluffs = d.bluffs;
+        for (const p of d.players) st.roles[p.seat] = { name: p.role, typ: p.typ, team: p.team, id: p.role_id };
+        break;
+      case "dawn": for (const s of d.deaths) st.dead[s] = true; st.label = "Morgengrauen"; break;
+      case "whisper_pairs": st.pairs = d.pairs; st.label = "Flüsterrunde " + d.round; break;
+      case "discussion_start": st.pairs = []; st.label = "Öffentliche Diskussion, Runde " + d.round; break;
+      case "nominations_open": st.pairs = []; st.threshold = d.threshold; st.label = "Nominierungen"; break;
+      case "nomination": st.nomination = { by: d.by, target: d.target, votes: {}, done: false }; break;
+      case "vote":
+        if (st.nomination) st.nomination.votes[d.voter] = d.yes;
+        if (d.ghost && d.yes) st.ghostUsed[d.voter] = true;
+        break;
+      case "vote_result":
+        st.block = d.block; st.blockVotes = d.block_votes;
+        if (st.nomination) st.nomination.done = true;
+        break;
+      case "execution": if (d.executed !== null) st.dead[d.executed] = true; st.nomination = null; st.label = "Hinrichtung"; break;
+      case "shot": st.dead[d.target] = true; break;
+      case "game_end":
+        st.ended = d; st.nomination = null; st.pairs = [];
+        for (const r of d.roles) st.roles[r.seat] = { name: r.role, typ: r.typ, team: r.team };
+        break;
+    }
+  }
+  if (st.grim) for (const p of st.grim.players) {
+    if (!p.alive) st.dead[p.seat] = true;
+    if (!p.ghost_vote) st.ghostUsed[p.seat] = true;
+  }
+  const cur = S.events[cursor];
+  if (cur && isShown(cur)) {
+    const d = cur.data;
+    const actor = { speech: d.seat, thought: d.seat, note: d.seat, night_choice: d.seat, night_info: d.seat, private_note: d.seat,
+                    whisper: d.from, vote: d.voter, nomination: d.by, shot: d.by }[cur.type];
+    if (actor !== undefined) st.speaker = actor;
+    if (cur.type === "whisper") st.target = d.to;
+  }
+  return st;
+}
+
+// ------------------------------------------------------------ Sitzkreis
+function renderCircle(st) {
+  const box = $("circle");
+  box.replaceChildren();
+  const n = S.names.length;
+  if (!n) return;
+  const size = 370, c = size / 2, r = 132;
+  const pos = (i) => { const a = (i / n) * 2 * Math.PI - Math.PI / 2; return [c + r * Math.cos(a), c + r * Math.sin(a) + 4]; };
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+  const mk = (name, attrs) => { const el = document.createElementNS("http://www.w3.org/2000/svg", name); for (const k in attrs) el.setAttribute(k, attrs[k]); return el; };
+  svg.append(mk("circle", { cx: c, cy: c + 4, r, fill: "none", stroke: "#222b38", "stroke-width": 1.5, "stroke-dasharray": "2 6" }));
+  for (const [a, b] of st.pairs) {
+    const [x1, y1] = pos(a), [x2, y2] = pos(b);
+    const active = st.speaker === a && st.target === b || st.speaker === b && st.target === a;
+    svg.append(mk("line", { x1, y1, x2, y2, stroke: active ? "#e9b44c" : "#b79bd6", "stroke-width": active ? 3 : 1.8,
+                             "stroke-dasharray": "5 5", opacity: active ? 1 : .6 }));
+  }
+  if (st.nomination && !st.nomination.done) {
+    const [x1, y1] = pos(st.nomination.by), [x2, y2] = pos(st.nomination.target);
+    svg.append(mk("line", { x1, y1, x2, y2, stroke: "#e5565b", "stroke-width": 2.5, opacity: .8 }));
+  }
+  box.append(svg);
+  const grim = st.grim ? Object.fromEntries(st.grim.players.map((p) => [p.seat, p])) : {};
+  for (let i = 0; i < n; i++) {
+    const [x, y] = pos(i);
+    const role = st.roles[i];
+    const dead = !!st.dead[i];
+    const cls = ["seat"];
+    if (role) cls.push(role.team === "Moor" ? "moor" : "dorf");
+    if (dead) cls.push("dead");
+    if (st.speaker === i) cls.push("speaking");
+    if (st.nomination && st.nomination.target === i) cls.push("nominee");
+    if (S.perspective === i) cls.push("focus");
+    const badges = [];
+    const g = grim[i];
+    if (g) {
+      if (g.perma_fog) badges.push("☁️∞"); else if (g.fog) badges.push("☁️");
+      if (st.grim.framed.includes(i)) badges.push("🎭");
+      if (st.grim.blackmailed === i) badges.push("🤐");
+    }
+    const token = h("div", { class: "token", style: `background:${COLORS[i % COLORS.length]}` }, S.names[i][0]);
+    if (badges.length) token.append(h("div", { class: "badges" }, badges.join("")));
+    const marks = [];
+    if (dead) marks.push(st.ghostUsed[i] ? "✝" : "✝👻");
+    if (st.block === i) marks.push("⚖️");
+    if (marks.length) token.append(h("div", { class: "mark" }, marks.join("")));
+    if (st.nomination && i in st.nomination.votes) {
+      const yes = st.nomination.votes[i];
+      token.append(h("div", { class: "votemark " + (yes ? "yes" : "no") }, yes ? "✓" : "✗"));
+    }
+    const scriptRole = role && S.script.find((r) => r.name === role.name);
+    box.append(h("div", { class: cls.join(" "), style: `left:${x}px;top:${y}px`, title: scriptRole ? `${role.name}: ${scriptRole.text}` : S.names[i] },
+      token, h("div", { class: "nm" }, `${i + 1} ${S.names[i]}`), h("div", { class: "rl" }, role ? role.name : " ")));
+  }
+  const alive = n - Object.keys(st.dead).length;
+  $("phase").textContent = st.ended ? "Spielende" : st.phase ? `${st.phase === "night" ? "🌙 Nacht" : "☀️ Tag"} ${st.round}` : "Aufbau";
+  const bits = [];
+  if (st.label && !st.ended) bits.push(st.label);
+  bits.push(`${alive} von ${n} leben`);
+  if (st.threshold && st.phase === "day" && !st.ended) bits.push(`nötig: ${st.threshold} Ja`);
+  if (st.block !== null && st.block !== undefined && !st.ended) bits.push(`Richtblock: ${S.names[st.block]} (${st.blockVotes})`);
+  $("subphase").textContent = bits.join(" · ");
+  const legend = ["✝👻 tot, Geisterstimme übrig", "⚖️ Richtblock"];
+  if (S.perspective === "st") legend.push("☁️ im Nebel (∞ dauerhaft)", "🎭 verleumdet", "🤐 erpresst");
+  $("legend").textContent = legend.join(" · ");
+}
+
+function renderRoles(st) {
+  const box = $("roles");
+  box.replaceChildren();
+  const inPlay = {};
+  for (const [seat, role] of Object.entries(st.roles)) inPlay[role.name] = S.names[seat];
+  const groups = [["Dörfler", "Dörfler (Dorf)"], ["Eigenbrötler", "Eigenbrötler (Dorf)"], ["Scherge", "Schergen (Moor)"], ["Unhold", "Unholde (Moor)"]];
+  for (const [typ, title] of groups) {
+    box.append(h("div", { class: "role-group" }, title));
+    for (const r of S.script.filter((x) => x.typ === typ)) {
+      const who = inPlay[r.name];
+      box.append(h("div", { class: "role-item" + (who ? " inplay" : "") },
+        h("b", null, r.name), who ? h("span", { class: "who" }, ` – ${who}`) : null, ": " + r.text));
+    }
+  }
+  if (st.bluffs) box.append(h("div", { class: "role-group" }, "Tarnrollen des Moor-Teams"), h("div", { class: "role-item" }, joinNames(st.bluffs)));
+}
+
+// ------------------------------------------------------------ Timeline
+function nameEl(seat, st, withRole = true) {
+  const role = st.roles[seat];
+  const out = [h("span", { class: "n", style: `color:${COLORS[seat % COLORS.length]}` }, S.names[seat])];
+  if (withRole && role) out.push(h("span", { class: "tag " + (role.team === "Moor" ? "moor" : "dorf") }, role.name));
+  return out;
+}
+const plain = (seat) => h("span", { class: "n", style: `color:${COLORS[seat % COLORS.length]}` }, S.names[seat]);
+function bubble(seat, st, cls, ctx, text) {
+  return h("div", { class: "ev bubble " + cls },
+    h("div", { class: "avatar", style: `background:${COLORS[seat % COLORS.length]}` }, S.names[seat][0]),
+    h("div", { class: "body" }, h("div", { class: "who" }, nameEl(seat, st), ctx ? h("span", { class: "ctx" }, ctx) : null),
+      h("div", { class: "txt" }, text)));
+}
+
+function eventNode(e, st) {
+  const d = e.data;
+  switch (e.type) {
+    case "game_start":
+      return h("div", { class: "ev card" }, h("b", null, "Spielstart"), ` · Seed ${d.seed} · ${d.players.length} Spieler: `,
+        d.players.map((p, k) => [k ? ", " : "", plain(p.seat)]),
+        S.meta ? h("div", { class: "who", style: "margin-top:4px" }, h("span", { class: "tag", style: "margin-left:0" },
+          `Agenten: ${S.meta.model}${S.meta.effort ? " (Aufwand " + S.meta.effort + ")" : ""} · Backend ${S.meta.backend} · Erzähler ${S.meta.storyteller}`)) : null);
+    case "role":
+      return h("div", { class: "ev line private" }, "🔒 ", plain(d.seat), ` ist ${d.role.artikel} `, h("b", null, d.role.name),
+        ` (${d.role.typ}, Team ${d.role.team})`);
+    case "evil_info":
+      return h("div", { class: "ev line private" }, "🔒 Das Moor-Team kennt sich: ",
+        d.members.map((m, k) => [k ? ", " : "", plain(m.seat), ` (${m.role})`]), ". Tarnrollen: ", joinNames(d.bluffs), ".");
+    case "night_choice":
+      return h("div", { class: "ev line private" }, "🔒 ", nameEl(d.seat, st), ": ", d.text);
+    case "night_info":
+      return h("div", { class: "ev line private" }, "🔒 Erzähler → ", nameEl(d.seat, st), ": ", h("b", null, d.text));
+    case "private_note":
+      return h("div", { class: "ev line private" }, "🔒 an ", nameEl(d.seat, st), ": ", d.text);
+    case "st_note":
+      return h("div", { class: "ev line st" }, "✎ ", d.text);
+    case "st_decision":
+      return h("div", { class: "ev line st" }, "✎ Erzähler-Ermessen (", plain(d.seat), "): ", d.question, " → ",
+        h("b", null, d.options[d.chosen]), d.reason ? ` – ${d.reason}` : "");
+    case "dawn": {
+      const dead = d.deaths.map((s) => S.names[s]);
+      return h("div", { class: "ev card" + (dead.length ? " death" : "") }, "🌅 Morgengrauen: ",
+        dead.length ? `In der Nacht ${dead.length === 1 ? "ist" : "sind"} ${joinNames(dead)} gestorben.` : "In der Nacht ist niemand gestorben.");
+    }
+    case "whisper_pairs":
+      return h("div", { class: "ev sub" }, `🤫 Flüsterrunde ${d.round}: `,
+        d.pairs.length ? d.pairs.map(([a, b], k) => [k ? " · " : "", plain(a), " ↔ ", plain(b)]) : "keine Gespräche",
+        d.alone.length ? [" · ohne Gespräch: ", joinNames(d.alone.map((s) => S.names[s]))] : null);
+    case "whisper":
+      return bubble(d.from, st, "whisper", ["flüstert mit ", S.names[d.to]], d.text);
+    case "discussion_start":
+      return h("div", { class: "ev sub" }, `💬 Öffentliche Diskussion, Runde ${d.round}`);
+    case "speech":
+      if (!d.text.trim()) return h("div", { class: "ev line" }, plain(d.seat), " sagt nichts.");
+      return bubble(d.seat, st, "", d.context === "defense" ? "verteidigt sich" : null, d.text);
+    case "nominations_open":
+      return h("div", { class: "ev sub" }, `⚖️ Nominierungen – nötig sind mindestens ${d.threshold} Ja-Stimmen (${d.alive} leben)`);
+    case "nomination":
+      return h("div", { class: "ev card nom" }, "⚖️ ", nameEl(d.by, st), " nominiert ", nameEl(d.target, st),
+        d.reason.trim() ? h("div", { class: "txt", style: "margin-top:4px" }, d.reason) : null);
+    case "vote":
+      return h("div", { class: "ev vote" }, plain(d.voter), h("span", { class: "pill " + (d.yes ? "yes" : "no") }, d.yes ? "JA" : "NEIN"),
+        d.ghost && d.yes ? "👻" : null, d.comment.trim() ? h("span", { class: "c" }, d.comment) : null);
+    case "vote_result": {
+      const text = { block: `${S.names[d.target]} steht jetzt auf dem Richtblock.`, insufficient: "Das reicht nicht.",
+        tie: "Gleichstand mit dem bisherigen Höchstwert – niemand steht auf dem Richtblock.",
+        below: `Nicht mehr als der bisherige Höchstwert (${d.block_votes}).` }[d.outcome];
+      return h("div", { class: "ev card result" }, h("b", null, `${d.yes} Ja-Stimmen`), ` für die Hinrichtung von `, plain(d.target),
+        ` (nötig: ${d.needed}). ${text}`,
+        h("div", { class: "tally" }, d.yes_voters.map((s) => h("span", { class: "chip yes" }, "✓ " + S.names[s]))));
+    }
+    case "execution":
+      return h("div", { class: "ev card death" }, d.executed === null ? "Der Tag endet: Heute wird niemand hingerichtet."
+        : ["✝ ", nameEl(d.executed, st), ` wird mit ${d.votes} Stimmen hingerichtet.`]);
+    case "shot":
+      return h("div", { class: "ev card death" }, "✝ ", nameEl(d.by, st), " war der Jäger und erschießt im Sterben ", nameEl(d.target, st), ".");
+    case "note":
+    case "thought":  // ältere Protokolle
+      return bubble(d.seat, st, "thought", "notiert für sich · " + (KIND[d.kind] || d.kind), d.text);
+    case "usage":
+      return h("div", { class: "ev line tech" }, `⚙ ${d.seat === null ? "Erzähler" : S.names[d.seat]} · ${KIND[d.kind] || d.kind}` +
+        ` · ${fmt((d.input_tokens || 0) + (d.cache_read_tokens || 0) + (d.cache_write_tokens || 0))} ein / ${fmt(d.output_tokens || 0)} aus` +
+        (d.cost_usd ? ` · ${d.cost_usd.toFixed(3)} $` : "") + ` · ${d.seconds}s` + (d.session ? ` · Sitzung ${d.session}` : "") +
+        (d.fallback_model ? ` · Ausweichmodell ${d.model}` : "") + (d.safeguard_retries ? ` · Sicherheitsfilter: ${d.safeguard_retries}× wiederholt` : "") +
+        (d.attempt > 1 ? " · 2. Versuch" : "") + (d.error ? ` · Fehler: ${d.error}` : ""));
+    case "fallback":
+      return h("div", { class: "ev line warn" }, `⚠ Rückfallaktion für ${d.seat === null ? "den Erzähler" : S.names[d.seat]} (${KIND[d.kind] || d.kind}): ${d.error}`);
+    case "game_end": {
+      const cls = d.winner === "Dorf" ? "dorf" : d.winner === "Moor" ? "moor" : "";
+      const s = d.stats;
+      return h("div", { class: "ev banner " + cls },
+        h("h2", null, d.winner ? `Team ${d.winner} gewinnt` : (d.aborted ? "Partie abgebrochen" : "Kein Sieger")),
+        h("div", null, d.reason),
+        h("table", { class: "reveal" }, d.roles.map((r) => h("tr", null,
+          h("td", null, plain(r.seat)), h("td", null, h("b", null, r.role)), h("td", null, `${r.typ} · Team ${r.team}`),
+          h("td", null, r.alive ? "lebt" : `tot (${{ night: "Nacht", execution: "Hinrichtung", shot: "Jäger" }[r.death] || "?"} ${r.death_round})`)))),
+        h("div", { class: "who", style: "margin-top:8px" }, h("span", { class: "tag", style: "margin-left:0" },
+          `Tarnrollen: ${joinNames(d.bluffs)} · ${s.calls} LLM-Aufrufe · ${fmt(s.tokens_in)} Tokens ein / ${fmt(s.tokens_out)} aus` +
+          ` · ${s.cost_usd.toFixed(2)} $ laut Backend · ${Math.round(s.seconds / 60)} min · ${s.fallbacks} Rückfallaktionen`)));
+    }
+  }
+  return null;
+}
+
+function newSection(kind, title) {
+  const sec = h("div", { class: "section" }, h("div", { class: "divider " + kind }, title));
+  $("timeline").append(sec);
+  S.section = sec;
+}
+
+function appendEvent(e, st) {
+  if (e.type === "phase") {
+    newSection(e.data.kind, `${e.data.kind === "night" ? "🌙 Nacht" : "☀️ Tag"} ${e.data.n}`);
+    return;
+  }
+  if (!S.section) newSection("setup", "Aufbau");
+  const node = eventNode(e, st);
+  if (node) { node.dataset.i = e.i; S.section.append(node); }
+}
+
+function render(forceScroll) {
+  const tl = $("timeline");
+  if (!S.events.length) return;
+  const st = foldState(S.cursor);
+  const key = [S.perspective, S.showThoughts, S.showTech, JSON.stringify(Object.entries(st.roles).map(([k, v]) => k + v.name))].join("|");
+  const nearBottom = tl.scrollHeight - tl.scrollTop - tl.clientHeight < 160;
+  if (key !== S.renderKey || S.cursor < S.renderedUpto) {
+    tl.replaceChildren();
+    S.section = null; S.renderedUpto = -1; S.renderKey = key;
+  }
+  for (const e of S.events) {
+    if (e.i <= S.renderedUpto) continue;
+    if (e.i > S.cursor) break;
+    if (isShown(e)) appendEvent(e, st);
+  }
+  S.renderedUpto = S.cursor;
+  renderWait();
+  renderCircle(st);
+  renderRoles(st);
+  const idx = shownIndices();
+  let p = 0;
+  while (p < idx.length && idx[p] <= S.cursor) p++;
+  $("slider").max = idx.length; $("slider").value = p;
+  $("pos").textContent = `${p} / ${idx.length}`;
+  $("live").classList.toggle("on", S.live);
+  $("play").textContent = S.playing ? "⏸ Anhalten" : "▶ Abspielen";
+  $("stats").textContent = st.calls ? `${st.calls} LLM-Aufrufe · ${fmt(st.tin)} ein / ${fmt(st.tout)} aus · ${st.cost.toFixed(2)} $` : "";
+  if (forceScroll || nearBottom) {
+    const target = S.live ? null : tl.querySelector(`[data-i="${S.cursor}"]`);
+    const scroll = () => { if (target) target.scrollIntoView({ block: "end" }); else tl.scrollTop = tl.scrollHeight; };
+    scroll(); requestAnimationFrame(scroll);
+  }
+}
+
+// Hinweis am Ende der Timeline, solange die Partie noch läuft.
+function renderWait() {
+  const old = $("waitline");
+  if (old) old.remove();
+  const last = S.events[S.events.length - 1];
+  if (!S.live || S.ended || !last || !S.names.length) return;
+  let wait = null;
+  for (let k = S.events.length - 1; k >= 0 && k > S.events.length - 60 && !wait; k--) if (S.events[k].type === "wait") wait = S.events[k];
+  const idle = Date.now() / 1000 - last.ts;
+  let text = "Die Agenten denken nach";
+  if (wait) {
+    const who = S.perspective === "st" ? joinNames(wait.data.seats.map((s) => S.names[s])) : "die Spieler";
+    text = `Am Zug: ${who} (${KIND[wait.data.kind] || wait.data.kind})`;
+  }
+  if (idle > 900) text = `Seit ${Math.round(idle / 60)} Minuten kein neues Ereignis – läuft die Partie noch? ${text}`;
+  (S.section || $("timeline")).append(h("div", { class: "waiting", id: "waitline" }, text));
+}
+
+// ------------------------------------------------------------ Steuerung
+function goTo(i, live = false) {
+  S.cursor = Math.max(-1, Math.min(i, S.events.length - 1));
+  S.live = live;
+  render(true);
+}
+function step(dir) {
+  const idx = shownIndices();
+  if (!idx.length) return false;
+  if (dir > 0) {
+    const next = idx.find((i) => i > S.cursor);
+    if (next === undefined) { goTo(S.events.length - 1, true); return false; }
+    goTo(next); return true;
+  }
+  const prev = idx.filter((i) => i < S.cursor);
+  goTo(prev.length ? prev[prev.length - 1] : idx[0]);
+  return true;
+}
+function delayFor(e) {
+  const len = (e.data.text || e.data.reason || e.data.comment || "").length;
+  const base = ["speech", "whisper", "thought", "note", "nomination"].includes(e.type) ? 900 + len * 22 : e.type === "vote" ? 700 : 450;
+  return Math.min(base, 9000) / S.speed;
+}
+function setPlaying(on) {
+  S.playing = on;
+  clearTimeout(S.timer);
+  if (on) {
+    if (S.cursor >= S.events.length - 1) goTo(-1);
+    const tick = () => {
+      if (!S.playing) return;
+      if (!step(1)) { S.playing = false; render(); return; }
+      S.timer = setTimeout(tick, delayFor(S.events[S.cursor]));
+    };
+    tick();
+  }
+  render();
+}
+
+function ingest(list) {
+  if (!list.length) return;
+  for (const e of list) {
+    S.events.push(e);
+    if (e.type === "meta") S.meta = e.data;
+    if (e.type === "game_start") { S.names = e.data.players.map((p) => p.name); S.script = e.data.script; fillPerspectives(); }
+    if (e.type === "game_end") S.ended = true;
+  }
+  if (S.live) S.cursor = S.events.length - 1;
+  else if (S.startPos !== undefined) { S.cursor = Math.min(S.startPos, S.events.length - 1); delete S.startPos; }
+  render(true);
+}
+function fillPerspectives() {
+  const sel = $("perspective");
+  const keep = String(S.perspective);
+  sel.replaceChildren(h("option", { value: "st" }, "Erzähler (alles)"), h("option", { value: "public" }, "Öffentlich (Tisch)"),
+    ...S.names.map((nm, i) => h("option", { value: String(i) }, `${i + 1} ${nm}`)));
+  sel.value = keep;
+  if (sel.selectedIndex < 0) { sel.value = "st"; S.perspective = "st"; }
+}
+function resetGame() {
+  clearTimeout(S.pollTimer); clearTimeout(S.timer);
+  Object.assign(S, { events: [], names: [], script: [], cursor: -1, live: true, playing: false, ended: false,
+                     renderKey: "", renderedUpto: -1, section: null, meta: null });
+  $("timeline").replaceChildren(h("div", { id: "empty" }, "Lade …"));
+  $("circle").replaceChildren(); $("stats").textContent = "";
+}
+async function poll() {
+  if (!S.game) return;
+  const game = S.game;
+  try {
+    const res = await fetch(`/api/events?game=${encodeURIComponent(game)}&from=${S.events.length}`);
+    if (res.ok && game === S.game) {
+      if (!S.events.length) $("timeline").replaceChildren();
+      ingest(await res.json());
+      renderWait();
+    }
+  } catch (err) { /* Server kurz nicht erreichbar – später erneut */ }
+  if (game === S.game && !S.ended) S.pollTimer = setTimeout(poll, 1500);
+}
+async function loadGames() {
+  const res = await fetch("/api/games");
+  const games = await res.json();
+  const sel = $("game");
+  sel.replaceChildren(...games.map((g) => h("option", { value: g.name }, g.name)));
+  if (!games.length) {
+    $("timeline").replaceChildren(h("div", { id: "empty" }, "Noch keine Partie gefunden. Starte eine mit ",
+      h("code", null, "python -m moorlicht run --view"), "."));
+    setTimeout(loadGames, 3000);
+    return;
+  }
+  const params = new URLSearchParams(location.search);
+  const wanted = params.get("game");
+  if (params.has("pos")) { S.live = false; S.startPos = Number(params.get("pos")); }
+  if (params.has("perspective")) {
+    const v = params.get("perspective");
+    S.perspective = v === "st" || v === "public" ? v : Math.max(0, Number(v) - 1);
+  }
+  S.game = games.some((g) => g.name === wanted) ? wanted : games[0].name;
+  sel.value = S.game;
+  poll();
+}
+
+function init() {
+  $("perspective").addEventListener("change", (ev) => {
+    const v = ev.target.value;
+    S.perspective = v === "st" || v === "public" ? v : Number(v);
+    render(true);
+  });
+  $("thoughts").addEventListener("change", (ev) => { S.showThoughts = ev.target.checked; render(true); });
+  $("tech").addEventListener("change", (ev) => { S.showTech = ev.target.checked; render(true); });
+  $("game").addEventListener("change", (ev) => {
+    resetGame(); S.game = ev.target.value;
+    history.replaceState(null, "", "?game=" + encodeURIComponent(S.game));
+    poll();
+  });
+  $("first").addEventListener("click", () => { setPlaying(false); const idx = shownIndices(); goTo(idx.length ? idx[0] : -1); });
+  $("prev").addEventListener("click", () => { setPlaying(false); step(-1); });
+  $("next").addEventListener("click", () => { setPlaying(false); step(1); });
+  $("live").addEventListener("click", () => { setPlaying(false); goTo(S.events.length - 1, true); });
+  $("play").addEventListener("click", () => setPlaying(!S.playing));
+  $("speed").addEventListener("change", (ev) => { S.speed = Number(ev.target.value); });
+  $("slider").addEventListener("input", (ev) => {
+    setPlaying(false);
+    const idx = shownIndices(), p = Number(ev.target.value);
+    if (p >= idx.length) goTo(S.events.length - 1, true); else goTo(p ? idx[p - 1] : -1);
+  });
+  document.addEventListener("keydown", (ev) => {
+    if (["INPUT", "SELECT"].includes(ev.target.tagName) && ev.target.type !== "range") return;
+    if (ev.key === "ArrowRight") { setPlaying(false); step(1); ev.preventDefault(); }
+    else if (ev.key === "ArrowLeft") { setPlaying(false); step(-1); ev.preventDefault(); }
+    else if (ev.key === " ") { setPlaying(!S.playing); ev.preventDefault(); }
+    else if (ev.key === "End") { setPlaying(false); goTo(S.events.length - 1, true); }
+  });
+  fillPerspectives();
+  if (location.protocol === "file:") {
+    // Ohne Server: Protokolldatei von Hand öffnen.
+    $("filebox").hidden = false;
+    $("game").parentElement.hidden = true;
+    $("timeline").replaceChildren(h("div", { id: "empty" }, "Öffne oben eine Protokolldatei (events.jsonl) – oder starte den Viewer mit ",
+      h("code", null, "python -m moorlicht view"), "."));
+    $("file").addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      resetGame();
+      $("timeline").replaceChildren();
+      const list = [];
+      for (const line of text.split("\n")) { if (line.trim()) { try { list.push(JSON.parse(line)); } catch (err) { /* unvollständige Zeile */ } } }
+      ingest(list);
+    });
+  } else {
+    loadGames().catch(() => { $("timeline").replaceChildren(h("div", { id: "empty" }, "Der Viewer-Server antwortet nicht.")); });
+  }
+}
+init();
+</script>
+</body>
+</html>

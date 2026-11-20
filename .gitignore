@@ -1,0 +1,6 @@
+# Python
+__pycache__/
+*.pyc
+
+# Spielprotokolle (werden bei jedem Lauf neu erzeugt)
+games/
