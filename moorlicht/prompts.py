@@ -86,8 +86,9 @@ def rules_text(start: dict) -> str:
         "ihn. Das gilt für alle Rollen, die nachts jemanden wählen. Wer sich selbst wählt, "
         "besucht niemanden.",
         "- Nebel: Wer im Nebel steht, merkt das nicht. Seine Fähigkeit hat keine Wirkung; "
-        "erhält er Informationen, darf der Erzähler ihm falsche geben. Einen Besuch macht "
-        "er trotzdem.",
+        "erhält er Informationen, darf der Erzähler ihm falsche geben. Wählt er nachts "
+        "jemanden, zählt das trotzdem als Besuch; nur der Schlafwandler bleibt im Nebel "
+        "zu Hause.",
         "",
         "### Tag",
         "1. Morgengrauen: Der Erzähler gibt bekannt, wer in der Nacht gestorben ist – nicht "

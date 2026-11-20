@@ -7,7 +7,8 @@ dazu das komplette Erzähler-Wissen und die privaten Notizen der Agenten.
 „Moorlicht“ ist ein eigenständiges Spiel im Genre der Social-Deduction-Spiele mit
 Erzähler: acht Spieler im Sitzkreis, Team Dorf gegen Team Moor, Nachtfähigkeiten,
 Falschinformation durch „Nebel“, Tote mit Geisterstimme, Nominierungen und Hinrichtungen.
-Es ist kein Nachbau eines bestehenden Spiels; Rollen und Regeln sind eigene.
+Es ist kein Nachbau eines bestehenden Spiels: Die Rollen sind eigene, der Rahmen aus
+Nacht, Tag, Nominierung und Abstimmung ist im Genre üblich.
 
 ## Schnellstart
 
